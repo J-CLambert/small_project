@@ -26,7 +26,9 @@ void loop(){
   Serial.print("Tension capteur: ");
   Serial.print(sensorTempVoltage);
 
-  representTempUsingPin(numberOfPinToTurnOn(sensorTempVal));
+  float temperature = covertVoltageToDegre(sensorTempVoltage);
+  int nbrPinToTurnOn = defineNbrPinToTurnOn(temperature);
+  representTempUsingPin(nbrPinToTurnOn);
 
   delay(1);
 
@@ -34,44 +36,66 @@ void loop(){
 
 
 //buisness logic
-int numberOfPinToTurnOn(int sensorVal){
-    const float baselineTemp = 22.0;
+int defineNbrPinToTurnOn(float temperature){
+   
+  const float baseLineTemp = 22.0;
 
-  if(sensorVal < baseLineTemp){
-    float degreAboveBaseLineTemp = sensorVal - baseLineTemp;
-    // nbrPintToTurnOn store float(of integer value) number that are facters of 2
-    float nbrPinToTurnOn = (degreAboveBaseLineTemp / 2) - (degreAboveBaseLineTemp % 2); 
-  }
+   if(temperature <= baseLineTemp){
+       return 0;
+    }
 
-  return static_cast<int>(round(nbrPinToTurnOn));
+  float degreAboveBaseLineTemp = temperature - baseLineTemp;
+
+  return roundNextOddSup(degreAboveBaseLineTemp) / 2;
 }
 
 
 //util
 float convert10bitTo0_5V(int intvalInBits){
-  int max10bit = 1023;
-  float maxVoltage 5;
+  float maxVoltage = 5.0;
 
-  float ratioBit = max10bit / intvalInBits;
-  float ratioVoltage = ratioBit * maxVoltage:
+  float ratioBit = intvalInBits / 1023.0 ;
+  float ratioVoltage = ratioBit * maxVoltage;
   return ratioVoltage;
 }
 
+float covertVoltageToDegre(float volatage){
+  return (volatage - .5) * 100;
+}
+
+int roundNextOddSup(float number){
+  int numberRoundedToSup = 0;
+  // condertire en int 3.5 -> 3 0.5 -> 1
+  //1) arondire au supérieur
+  numberRoundedToSup = static_cast<int>(ceil(number));
+
+  //2) si non paire ajouter un
+  if(numberRoundedToSup % 2 != 0){
+    numberRoundedToSup += 1;
+  }
+  return numberRoundedToSup;
+}
 
 //interface
 void representTempUsingPin(int nbrPinToTurnOn){
   int const nbrPin = 3;
 
   //pin: {2 3 4} itérer nbrPinToTurnOn fois de 2 a 4
-  if(nbrPinToTurnOn >= 0 && nbrPinToTurnOn <= 3){
+  if(nbrPinToTurnOn < 0 || nbrPinToTurnOn > 3){
     //value not expected : error 001
     showError(1);
+    return;
   }
 
-  for(pin = 2; pin < nbrPinToTurnOn; pin ++){
-    digitalWrite(pin, HIGH);
+  for(int pin = 2; pin < 5; pin ++){
+    if(pin < 2 + nbrPinToTurnOn){
+      digitalWrite(pin, HIGH);
+    }else{
+      digitalWrite(pin, LOW);
+    } 
   }
 }
+
 
 void showError(int errorNumber){
   // 3 errors possible (pin2, pin3, pin4) 011 010 001
@@ -81,19 +105,19 @@ void showError(int errorNumber){
   //error 3 = 011 is for unknow error -> errorNumber is not includ in [1,2]
 
   if(errorNumber < 1 || errorNumber > 2){ // error 3) 011
-    digitalWrite(2, LOW); //0
-    digitalWrite(3, LOW); //1
+    digitalWrite(2, LOW);  //0
+    digitalWrite(3, HIGH);  //1
     digitalWrite(4, HIGH); //1
 
-  }if else(errorNumber == 1){// error 1) 001
+  }else if(errorNumber == 1){// error 1) 001
   //1) 001 is error for case when the number of pin to turn on is higher then the existing number of led
-    digitalWrite(2, LOW); //0
-    digitalWrite(3, HIGH); //0
+    digitalWrite(2, LOW);  //0
+    digitalWrite(3, LOW); //0
     digitalWrite(4, HIGH); //1
 
   }else{ // error 2) 010
-    digitalWrite(2, LOW); //0
-    digitalWrite(3, LOW); //2
-    digitalWrite(4, HIGH); //0
+    digitalWrite(2, LOW);  //0
+    digitalWrite(3, HIGH); //1
+    digitalWrite(4, LOW);  //0
   }
 }
